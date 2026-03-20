@@ -4,24 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Beitrag bearbeiten</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
+<div class="container">
+
     <h1>Beitrag bearbeiten</h1>
 
     <form action="{{ url_for('update', post_id=post['id']) }}" method="POST">
-        <label for="title">Titel:</label><br>
-        <input type="text" id="title" name="title" value="{{ post['title'] }}" required><br><br>
+        <label>Titel</label>
+        <input type="text" name="title" value="{{ post['title'] }}" required>
 
-        <label for="category">Kategorie:</label><br>
-        <input type="text" id="category" name="category" value="{{ post['category'] }}" required><br><br>
+        <label>Kategorie</label>
+        <input type="text" name="category" value="{{ post['category'] }}" required>
 
-        <label for="content">Inhalt:</label><br>
-        <textarea id="content" name="content" rows="8" cols="50" required>{{ post['content'] }}</textarea><br><br>
+        <label>Inhalt</label>
+        <textarea name="content" rows="8" required>{{ post['content'] }}</textarea>
 
         <button type="submit">Aktualisieren</button>
     </form>
 
     <br>
-    <a href="{{ url_for('index') }}">Zurück zur Startseite</a>
+    <a href="{{ url_for('index') }}">← Zurück</a>
+
+</div>
 </body>
 </html>

@@ -1,68 +1,39 @@
-from flask import Flask, request, render_template, redirect, url_for
+Design der "Update" Form
+Formularfelder mit Werten vorbelegen
+Wenn du ein HTML-Formular gestaltest, kannst du mit dem Attribut value einen Standardwert für ein Eingabefeld festlegen. Dieses Attribut bestimmt den Anfangswert des Feldes beim Laden der Seite.
+Ein einfaches Beispiel:
 
-app = Flask(__name__)
+<input type="text" name="name" value="John Doe">
+In diesem Fall ist „John Doe“ der Standardwert für das Texteingabefeld. Wenn der Benutzer das Formular öffnet, ist das Feld bereits mit „John Doe“ ausgefüllt.
+Wenn du dynamische Werte nutzen willst – besonders in Verbindung mit Template-Sprachen wie Jinja2 in Flask – kannst du Werte von der Serverseite übergeben und damit das value-Attribut dynamisch befüllen. Zum Beispiel:
 
-blog_posts = [
-    {"id": 1, "title": "Erster Post", "content": "Hallo Welt"},
-    {"id": 2, "title": "Zweiter Post", "content": "Mein zweiter Eintrag"}
-]
+<input type="text" id="author" name="author" value="{{ post.author }}">
+Hier ist post.author eine Variable, die von der Flask-Anwendung an das Template übergeben wurde. Die Syntax {{ ... }} wird in Jinja2 verwendet, um den Wert eines Ausdrucks auszugeben. Wenn post.author zum Beispiel „John Doe“ ist, sieht das gerenderte HTML so aus:
 
+<input type="text" id="author" name="author" value="John Doe">
+So kannst du Formularfelder dynamisch mit Werten befüllen, wenn du Flask mit Jinja2 verwendest.
+Erstelle das Update-Formular
+Zum Schluss erstellen wir ein neues Template, update.html, um das Bearbeitungsformular anzuzeigen. Dieses Template wird dem bestehenden add.html sehr ähnlich sein, mit ein paar Unterschieden:
+Das action-Attribut des Formulars enthält die ID des Blogeintrags, der bearbeitet werden soll.
+Jedes Eingabefeld enthält ein value-Attribut, das die aktuellen Daten des Blogeintrags anzeigt.
+Hier ein Beispiel, wie update.html aussehen könnte:
 
-def fetch_post_by_id(post_id):
-    for post in blog_posts:
-        if post["id"] == post_id:
-            return post
-    return None
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Blog Post</title>
+</head>
+<body>
+    <h1>Update Blog Post</h1>
 
-
-@app.route('/')
-def index():
-    return render_template("index.html", posts=blog_posts)
-
-
-@app.route('/add', methods=['GET', 'POST'])
-def add():
-    if request.method == 'POST':
-        title = request.form.get("title")
-        content = request.form.get("content")
-
-        new_id = max([post["id"] for post in blog_posts], default=0) + 1
-
-        new_post = {
-            "id": new_id,
-            "title": title,
-            "content": content
-        }
-
-        blog_posts.append(new_post)
-
-        return redirect(url_for('index'))
-
-    return render_template('add.html')
-
-
-@app.route('/delete/<int:post_id>')
-def delete(post_id):
-    global blog_posts
-    blog_posts = [post for post in blog_posts if post["id"] != post_id]
-    return redirect(url_for('index'))
-
-
-@app.route('/update/<int:post_id>', methods=['GET', 'POST'])
-def update(post_id):
-    post = fetch_post_by_id(post_id)
-
-    if post is None:
-        return "Post not found", 404
-
-    if request.method == 'POST':
-        post["title"] = request.form.get("title")
-        post["content"] = request.form.get("content")
-
-        return redirect(url_for('index'))
-
-    return render_template('update.html', post=post)
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
+    <form action="{{ url_for('update', post_id=post['id']) }}" method="POST">
+        <label for="author">Author:</label><br>
+        <input type="text" id="author" name="author" value="{{ post['author'] }}"><br>
+        ...
+        <input type="submit" value="Update">
+    </form>
+</body>
+</html>
+Deine Flask-Blog-Anwendung unterstützt jetzt das Bearbeiten bestehender Blogeinträge – zusätzlich zum Anzeigen, Hinzufügen und Löschen. Großartig gemacht! 🎉

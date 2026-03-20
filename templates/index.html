@@ -6,32 +6,82 @@
     <title>Blog</title>
 </head>
 <body>
-    <h1>Blog</h1>
+    <h1>Meine Flask Blog-App</h1>
 
     <p>
         <a href="{{ url_for('add') }}">+ Neuer Beitrag</a>
     </p>
 
-    {% if posts %}
-        <ul>
-            {% for post in posts %}
-                <li>
-                    <h2>{{ post['title'] }}</h2>
-                    <p>{{ post['content'] }}</p>
+    <h2>Suche & Filter</h2>
+    <form action="{{ url_for('index') }}" method="GET">
+        <input
+            type="text"
+            name="q"
+            placeholder="Nach Titel oder Inhalt suchen"
+            value="{{ current_search }}"
+        >
 
-                    <a href="{{ url_for('update', post_id=post['id']) }}">
-                        <button>Bearbeiten</button>
-                    </a>
-
-                    <a href="{{ url_for('delete', post_id=post['id']) }}">
-                        <button>Löschen</button>
-                    </a>
-                </li>
-                <hr>
+        <select name="category">
+            <option value="">Alle Kategorien</option>
+            {% for category in categories %}
+                <option value="{{ category }}" {% if current_category == category %}selected{% endif %}>
+                    {{ category }}
+                </option>
             {% endfor %}
-        </ul>
+        </select>
+
+        <button type="submit">Filtern</button>
+        <a href="{{ url_for('index') }}">Zurücksetzen</a>
+    </form>
+
+    <hr>
+
+    {% if posts %}
+        {% for post in posts %}
+            <article>
+                <h2>{{ post['title'] }}</h2>
+                <p><strong>Kategorie:</strong> {{ post['category'] }}</p>
+                <p>{{ post['content'] }}</p>
+                <p><strong>Likes:</strong> {{ post['likes'] }}</p>
+
+                <a href="{{ url_for('update', post_id=post['id']) }}">
+                    <button>Bearbeiten</button>
+                </a>
+
+                <a href="{{ url_for('delete', post_id=post['id']) }}">
+                    <button>Löschen</button>
+                </a>
+
+                <form action="{{ url_for('like', post_id=post['id']) }}" method="POST" style="margin-top: 10px;">
+                    <button type="submit">Like</button>
+                </form>
+
+                <h3>Kommentare</h3>
+                {% if post['comments'] %}
+                    <ul>
+                        {% for comment in post['comments'] %}
+                            <li>
+                                <strong>{{ comment['author'] }}:</strong> {{ comment['text'] }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>Noch keine Kommentare.</p>
+                {% endif %}
+
+                <form action="{{ url_for('comment', post_id=post['id']) }}" method="POST">
+                    <input type="text" name="author" placeholder="Dein Name" required>
+                    <br><br>
+                    <textarea name="text" rows="3" cols="40" placeholder="Dein Kommentar" required></textarea>
+                    <br><br>
+                    <button type="submit">Kommentar hinzufügen</button>
+                </form>
+            </article>
+
+            <hr>
+        {% endfor %}
     {% else %}
-        <p>Noch keine Blogbeiträge vorhanden.</p>
+        <p>Keine Beiträge gefunden.</p>
     {% endif %}
 </body>
 </html>

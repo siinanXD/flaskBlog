@@ -1,39 +1,153 @@
-Design der "Update" Form
-Formularfelder mit Werten vorbelegen
-Wenn du ein HTML-Formular gestaltest, kannst du mit dem Attribut value einen Standardwert für ein Eingabefeld festlegen. Dieses Attribut bestimmt den Anfangswert des Feldes beim Laden der Seite.
-Ein einfaches Beispiel:
+from flask import Flask, request, render_template, redirect, url_for
 
-<input type="text" name="name" value="John Doe">
-In diesem Fall ist „John Doe“ der Standardwert für das Texteingabefeld. Wenn der Benutzer das Formular öffnet, ist das Feld bereits mit „John Doe“ ausgefüllt.
-Wenn du dynamische Werte nutzen willst – besonders in Verbindung mit Template-Sprachen wie Jinja2 in Flask – kannst du Werte von der Serverseite übergeben und damit das value-Attribut dynamisch befüllen. Zum Beispiel:
+app = Flask(__name__)
 
-<input type="text" id="author" name="author" value="{{ post.author }}">
-Hier ist post.author eine Variable, die von der Flask-Anwendung an das Template übergeben wurde. Die Syntax {{ ... }} wird in Jinja2 verwendet, um den Wert eines Ausdrucks auszugeben. Wenn post.author zum Beispiel „John Doe“ ist, sieht das gerenderte HTML so aus:
+blog_posts = [
+    {
+        "id": 1,
+        "title": "Erster Post",
+        "content": "Hallo Welt! Das ist mein erster Blogeintrag.",
+        "category": "Allgemein",
+        "likes": 0,
+        "comments": [
+            {"author": "Sinan", "text": "Starker Start!"}
+        ]
+    },
+    {
+        "id": 2,
+        "title": "Flask lernen",
+        "content": "Heute lerne ich Flask und baue meine eigene Blog-App.",
+        "category": "Programmierung",
+        "likes": 2,
+        "comments": []
+    }
+]
 
-<input type="text" id="author" name="author" value="John Doe">
-So kannst du Formularfelder dynamisch mit Werten befüllen, wenn du Flask mit Jinja2 verwendest.
-Erstelle das Update-Formular
-Zum Schluss erstellen wir ein neues Template, update.html, um das Bearbeitungsformular anzuzeigen. Dieses Template wird dem bestehenden add.html sehr ähnlich sein, mit ein paar Unterschieden:
-Das action-Attribut des Formulars enthält die ID des Blogeintrags, der bearbeitet werden soll.
-Jedes Eingabefeld enthält ein value-Attribut, das die aktuellen Daten des Blogeintrags anzeigt.
-Hier ein Beispiel, wie update.html aussehen könnte:
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Update Blog Post</title>
-</head>
-<body>
-    <h1>Update Blog Post</h1>
+def fetch_post_by_id(post_id):
+    for post in blog_posts:
+        if post["id"] == post_id:
+            return post
+    return None
 
-    <form action="{{ url_for('update', post_id=post['id']) }}" method="POST">
-        <label for="author">Author:</label><br>
-        <input type="text" id="author" name="author" value="{{ post['author'] }}"><br>
-        ...
-        <input type="submit" value="Update">
-    </form>
-</body>
-</html>
-Deine Flask-Blog-Anwendung unterstützt jetzt das Bearbeiten bestehender Blogeinträge – zusätzlich zum Anzeigen, Hinzufügen und Löschen. Großartig gemacht! 🎉
+
+@app.route('/')
+def index():
+    search_query = request.args.get("q", "").strip().lower()
+    category_filter = request.args.get("category", "").strip()
+
+    filtered_posts = blog_posts
+
+    if search_query:
+        filtered_posts = [
+            post for post in filtered_posts
+            if search_query in post["title"].lower() or search_query in post["content"].lower()
+        ]
+
+    if category_filter:
+        filtered_posts = [
+            post for post in filtered_posts
+            if post["category"].lower() == category_filter.lower()
+        ]
+
+    categories = sorted(set(post["category"] for post in blog_posts))
+
+    return render_template(
+        "index.html",
+        posts=filtered_posts,
+        categories=categories,
+        current_search=search_query,
+        current_category=category_filter
+    )
+
+
+@app.route('/add', methods=['GET', 'POST'])
+def add():
+    if request.method == 'POST':
+        title = request.form.get("title", "").strip()
+        content = request.form.get("content", "").strip()
+        category = request.form.get("category", "").strip()
+
+        if not title or not content or not category:
+            return "Titel, Inhalt und Kategorie sind erforderlich.", 400
+
+        new_id = max([post["id"] for post in blog_posts], default=0) + 1
+
+        new_post = {
+            "id": new_id,
+            "title": title,
+            "content": content,
+            "category": category,
+            "likes": 0,
+            "comments": []
+        }
+
+        blog_posts.append(new_post)
+        return redirect(url_for('index'))
+
+    return render_template('add.html')
+
+
+@app.route('/update/<int:post_id>', methods=['GET', 'POST'])
+def update(post_id):
+    post = fetch_post_by_id(post_id)
+
+    if post is None:
+        return "Post not found", 404
+
+    if request.method == 'POST':
+        title = request.form.get("title", "").strip()
+        content = request.form.get("content", "").strip()
+        category = request.form.get("category", "").strip()
+
+        if not title or not content or not category:
+            return "Titel, Inhalt und Kategorie sind erforderlich.", 400
+
+        post["title"] = title
+        post["content"] = content
+        post["category"] = category
+
+        return redirect(url_for('index'))
+
+    return render_template('update.html', post=post)
+
+
+@app.route('/delete/<int:post_id>')
+def delete(post_id):
+    global blog_posts
+    blog_posts = [post for post in blog_posts if post["id"] != post_id]
+    return redirect(url_for('index'))
+
+
+@app.route('/like/<int:post_id>', methods=['POST'])
+def like(post_id):
+    post = fetch_post_by_id(post_id)
+
+    if post is None:
+        return "Post not found", 404
+
+    post["likes"] += 1
+    return redirect(url_for('index'))
+
+
+@app.route('/comment/<int:post_id>', methods=['POST'])
+def comment(post_id):
+    post = fetch_post_by_id(post_id)
+
+    if post is None:
+        return "Post not found", 404
+
+    author = request.form.get("author", "").strip()
+    text = request.form.get("text", "").strip()
+
+    if author and text:
+        post["comments"].append({
+            "author": author,
+            "text": text
+        })
+
+    return redirect(url_for('index'))
+
+
+if __name__ == "__main__":
+    app.run(debug=True)

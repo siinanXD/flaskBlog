@@ -1,12 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Blog</title>
+</head>
+<body>
+
 <h1>Blog</h1>
 
-<a href="/add">+ Neuer Beitrag</a>
+<a href="{{ url_for('add') }}">+ Neuer Beitrag</a>
 
 <ul>
 {% for post in posts %}
     <li>
         <h3>{{ post.title }}</h3>
         <p>{{ post.content }}</p>
+
+        <a href="{{ url_for('delete', post_id=post.id) }}">
+            <button>Löschen</button>
+        </a>
     </li>
 {% endfor %}
 </ul>
+
+</body>
+</html>

@@ -4,7 +4,8 @@ from flask import Flask, request, render_template, redirect, url_for
 
 app = Flask(__name__)
 
-DATA_FILE = "posts.json"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_FILE = os.path.join(BASE_DIR, "posts.json")
 
 
 def load_posts():
@@ -21,7 +22,8 @@ def load_posts():
         with open(DATA_FILE, "r", encoding="utf-8") as file:
             posts = json.load(file)
             return posts if isinstance(posts, list) else []
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"Error loading posts: {e}")
         return []
 
 
@@ -39,7 +41,11 @@ def save_posts(posts):
         with open(DATA_FILE, "w", encoding="utf-8") as file:
             json.dump(posts, file, ensure_ascii=False, indent=4)
         return True
-    except (OSError, TypeError):
+    except OSError as e:
+        print(f"File error while saving: {e}")
+        return False
+    except TypeError as e:
+        print(f"Serialization error: {e}")
         return False
 
 
@@ -64,13 +70,6 @@ def fetch_post_by_id(posts, post_id):
 def index():
     """
     Display all blog posts with optional search and category filtering.
-
-    Query Parameters:
-        q (str): Search term for title or content.
-        category (str): Category filter.
-
-    Returns:
-        str: Rendered index page.
     """
     posts = load_posts()
     search_query = request.args.get("q", "").strip().lower()
@@ -106,9 +105,6 @@ def index():
 def add():
     """
     Add a new blog post.
-
-    Returns:
-        str | Response: Rendered add form or redirect to index after saving.
     """
     if request.method == "POST":
         posts = load_posts()
@@ -145,12 +141,6 @@ def add():
 def update(post_id):
     """
     Update an existing blog post.
-
-    Args:
-        post_id (int): The ID of the post to update.
-
-    Returns:
-        str | Response: Rendered update form, redirect, or 404 error.
     """
     posts = load_posts()
     post = fetch_post_by_id(posts, post_id)
@@ -182,12 +172,6 @@ def update(post_id):
 def delete(post_id):
     """
     Delete a blog post by its ID.
-
-    Args:
-        post_id (int): The ID of the post to delete.
-
-    Returns:
-        Response | tuple: Redirect to the index page or 404 error.
     """
     posts = load_posts()
     post = fetch_post_by_id(posts, post_id)
@@ -207,12 +191,6 @@ def delete(post_id):
 def like(post_id):
     """
     Increase the like count for a blog post.
-
-    Args:
-        post_id (int): The ID of the post to like.
-
-    Returns:
-        Response | tuple: Redirect to index or 404 error.
     """
     posts = load_posts()
     post = fetch_post_by_id(posts, post_id)
@@ -232,12 +210,6 @@ def like(post_id):
 def comment(post_id):
     """
     Add a comment to a blog post.
-
-    Args:
-        post_id (int): The ID of the post to comment on.
-
-    Returns:
-        Response | tuple: Redirect to index or 404 error.
     """
     posts = load_posts()
     post = fetch_post_by_id(posts, post_id)

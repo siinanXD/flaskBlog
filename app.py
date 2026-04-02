@@ -1,47 +1,88 @@
+import json
+import os
 from flask import Flask, request, render_template, redirect, url_for
 
 app = Flask(__name__)
 
-blog_posts = [
-    {
-        "id": 1,
-        "title": "Erster Post",
-        "content": "Hallo Welt! Das ist mein erster Blogeintrag.",
-        "category": "Allgemein",
-        "likes": 0,
-        "comments": [
-            {"author": "Sinan", "text": "Starker Start!"}
-        ]
-    },
-    {
-        "id": 2,
-        "title": "Flask lernen",
-        "content": "Heute lerne ich Flask und baue meine eigene Blog-App.",
-        "category": "Programmierung",
-        "likes": 2,
-        "comments": []
-    }
-]
+DATA_FILE = "posts.json"
 
 
-def fetch_post_by_id(post_id):
-    for post in blog_posts:
+def load_posts():
+    """
+    Load all blog posts from the JSON file.
+
+    Returns:
+        list: A list of blog post dictionaries.
+    """
+    if not os.path.exists(DATA_FILE):
+        return []
+
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as file:
+            posts = json.load(file)
+            return posts if isinstance(posts, list) else []
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def save_posts(posts):
+    """
+    Save all blog posts to the JSON file.
+
+    Args:
+        posts (list): A list of blog post dictionaries to save.
+
+    Returns:
+        bool: True if saving was successful, otherwise False.
+    """
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as file:
+            json.dump(posts, file, ensure_ascii=False, indent=4)
+        return True
+    except (OSError, TypeError):
+        return False
+
+
+def fetch_post_by_id(posts, post_id):
+    """
+    Find a blog post by its ID.
+
+    Args:
+        posts (list): A list of blog post dictionaries.
+        post_id (int): The ID of the post to search for.
+
+    Returns:
+        dict | None: The matching post dictionary, or None if not found.
+    """
+    for post in posts:
         if post["id"] == post_id:
             return post
     return None
 
 
-@app.route('/')
+@app.route("/")
 def index():
+    """
+    Display all blog posts with optional search and category filtering.
+
+    Query Parameters:
+        q (str): Search term for title or content.
+        category (str): Category filter.
+
+    Returns:
+        str: Rendered index page.
+    """
+    posts = load_posts()
     search_query = request.args.get("q", "").strip().lower()
     category_filter = request.args.get("category", "").strip()
 
-    filtered_posts = blog_posts
+    filtered_posts = posts
 
     if search_query:
         filtered_posts = [
             post for post in filtered_posts
-            if search_query in post["title"].lower() or search_query in post["content"].lower()
+            if search_query in post["title"].lower()
+            or search_query in post["content"].lower()
         ]
 
     if category_filter:
@@ -50,7 +91,7 @@ def index():
             if post["category"].lower() == category_filter.lower()
         ]
 
-    categories = sorted(set(post["category"] for post in blog_posts))
+    categories = sorted(set(post["category"] for post in posts))
 
     return render_template(
         "index.html",
@@ -61,9 +102,17 @@ def index():
     )
 
 
-@app.route('/add', methods=['GET', 'POST'])
+@app.route("/add", methods=["GET", "POST"])
 def add():
-    if request.method == 'POST':
+    """
+    Add a new blog post.
+
+    Returns:
+        str | Response: Rendered add form or redirect to index after saving.
+    """
+    if request.method == "POST":
+        posts = load_posts()
+
         title = request.form.get("title", "").strip()
         content = request.form.get("content", "").strip()
         category = request.form.get("category", "").strip()
@@ -71,7 +120,7 @@ def add():
         if not title or not content or not category:
             return "Titel, Inhalt und Kategorie sind erforderlich.", 400
 
-        new_id = max([post["id"] for post in blog_posts], default=0) + 1
+        new_id = max((post["id"] for post in posts), default=0) + 1
 
         new_post = {
             "id": new_id,
@@ -82,20 +131,34 @@ def add():
             "comments": []
         }
 
-        blog_posts.append(new_post)
-        return redirect(url_for('index'))
+        posts.append(new_post)
 
-    return render_template('add.html')
+        if not save_posts(posts):
+            return "Fehler beim Speichern der Posts.", 500
+
+        return redirect(url_for("index"))
+
+    return render_template("add.html")
 
 
-@app.route('/update/<int:post_id>', methods=['GET', 'POST'])
+@app.route("/update/<int:post_id>", methods=["GET", "POST"])
 def update(post_id):
-    post = fetch_post_by_id(post_id)
+    """
+    Update an existing blog post.
+
+    Args:
+        post_id (int): The ID of the post to update.
+
+    Returns:
+        str | Response: Rendered update form, redirect, or 404 error.
+    """
+    posts = load_posts()
+    post = fetch_post_by_id(posts, post_id)
 
     if post is None:
         return "Post not found", 404
 
-    if request.method == 'POST':
+    if request.method == "POST":
         title = request.form.get("title", "").strip()
         content = request.form.get("content", "").strip()
         category = request.form.get("category", "").strip()
@@ -107,32 +170,77 @@ def update(post_id):
         post["content"] = content
         post["category"] = category
 
-        return redirect(url_for('index'))
+        if not save_posts(posts):
+            return "Fehler beim Speichern der Posts.", 500
 
-    return render_template('update.html', post=post)
+        return redirect(url_for("index"))
+
+    return render_template("update.html", post=post)
 
 
-@app.route('/delete/<int:post_id>')
+@app.route("/delete/<int:post_id>")
 def delete(post_id):
-    global blog_posts
-    blog_posts = [post for post in blog_posts if post["id"] != post_id]
-    return redirect(url_for('index'))
+    """
+    Delete a blog post by its ID.
+
+    Args:
+        post_id (int): The ID of the post to delete.
+
+    Returns:
+        Response | tuple: Redirect to the index page or 404 error.
+    """
+    posts = load_posts()
+    post = fetch_post_by_id(posts, post_id)
+
+    if post is None:
+        return "Post not found", 404
+
+    posts.remove(post)
+
+    if not save_posts(posts):
+        return "Fehler beim Speichern der Posts.", 500
+
+    return redirect(url_for("index"))
 
 
-@app.route('/like/<int:post_id>', methods=['POST'])
+@app.route("/like/<int:post_id>", methods=["POST"])
 def like(post_id):
-    post = fetch_post_by_id(post_id)
+    """
+    Increase the like count for a blog post.
+
+    Args:
+        post_id (int): The ID of the post to like.
+
+    Returns:
+        Response | tuple: Redirect to index or 404 error.
+    """
+    posts = load_posts()
+    post = fetch_post_by_id(posts, post_id)
 
     if post is None:
         return "Post not found", 404
 
     post["likes"] += 1
-    return redirect(url_for('index'))
+
+    if not save_posts(posts):
+        return "Fehler beim Speichern der Posts.", 500
+
+    return redirect(url_for("index"))
 
 
-@app.route('/comment/<int:post_id>', methods=['POST'])
+@app.route("/comment/<int:post_id>", methods=["POST"])
 def comment(post_id):
-    post = fetch_post_by_id(post_id)
+    """
+    Add a comment to a blog post.
+
+    Args:
+        post_id (int): The ID of the post to comment on.
+
+    Returns:
+        Response | tuple: Redirect to index or 404 error.
+    """
+    posts = load_posts()
+    post = fetch_post_by_id(posts, post_id)
 
     if post is None:
         return "Post not found", 404
@@ -146,8 +254,11 @@ def comment(post_id):
             "text": text
         })
 
-    return redirect(url_for('index'))
+        if not save_posts(posts):
+            return "Fehler beim Speichern der Posts.", 500
+
+    return redirect(url_for("index"))
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)

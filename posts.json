@@ -1,0 +1,15 @@
+[
+    {
+        "id": 1,
+        "title": "Erster Post",
+        "content": "Hallo Welt! Das ist mein erster Blogeintrag.fw",
+        "category": "Allgemein",
+        "likes": 16,
+        "comments": [
+            {
+                "author": "Sinan",
+                "text": "Starker Start!"
+            }
+        ]
+    }
+]
